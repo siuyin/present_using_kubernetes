@@ -223,3 +223,7 @@ Here is where the sfboxes from sfbox-0.sfboxes comes from:
 With headless service, you access the individual pods directly eg. sfbox-0.sfboxes .
 With a regular service you access the service "sfboxes".
 
+
+* Presentation and code download
+
+.link https://github.com/siuyin/present_using_kubernetes
