@@ -1,0 +1,49 @@
+---
+# 10 OMIT
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: bb-data01
+  labels:
+    app: busyboxes
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: "hd-1gib"
+# 20 OMIT
+---
+# 30 OMIT
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: busyboxes
+  labels:
+    app: busyboxes
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: busyboxes     # must match below
+  template:
+    metadata:
+      labels:
+        app: busyboxes   # must match above
+# 34 OMIT
+# 35 OMIT
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+      - name: bbox
+        image: busybox:1.27
+        command: ["sleep","1000000000"]
+        volumeMounts:
+        - mountPath: /data
+          name: data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: bb-data01
+# 40 OMIT

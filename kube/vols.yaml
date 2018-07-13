@@ -1,0 +1,32 @@
+---
+# 10 OMIT
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-hd001
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: "hd-1gib"
+  hostPath:        # only workable on single node cluster
+    path: /data/pv-hd001 # <- first // HL
+# 20 OMIT
+---
+# 30 OMIT
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-hd002
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: "hd-1gib"
+  hostPath:        # only workable on single node cluster
+    path: /data/pv-hd002  # <- second // HL
+# 40 OMIT

@@ -6,3 +6,220 @@ Loh Siu Yin
 Technology Consultant, Beyond Broadcast LLP
 siuyin@beyondbroadcast.com
 
+* Kubernetes
+
+* Kubernetes
+Kubernetes is an open-source system for automating deployment, scaling, and management of containerized applications.
+
+- Really nice
+
+- Steep learning curve
+
+* Step 0: Get yourself a cluster
+
+Many ways:
+
+- Use a major cloud provider. Eg. Amazon ECS, Azure AKS, Google GKE etc. 
+
+- On your laptop: minikube, minishift etc.
+
+- Build your own: kops, kubeadm etc.
+
+For this presentation, I will use minikube.
+
+* Step 1: Access your cluster
+
+- Get kubectl  (I pronouce this "kube-control")
+
+.play  cmd/cluster-info.sh
+
+Write down your cluster address.
+
+.play  cmd/get-node.sh
+
+* Volumes and Storage Classes
+
+* Volume v. Persistent Volume
+
+- Volume points to a specific storage resource. Eg. awsElasticBlockStore volumeID, gcpPersistentDisk pdName, or hostPath path
+
+- Persistent Volume (pv) points to a *member* of a class of storage resources. Eg. SSD 1Gi, HardDrive 10Gi
+
+*Which* member is defined by a Persistent Volume Claim (pvc).
+
+Persistent Volumes may be:
+1. Manually created by a system admin
+2. Automatically created if volume provisioners are listening out for PVCs
+
+I will create persistent volumes manually.
+
+* Let's create two PVs
+
+.play -edit cmd/create_two_pv.sh
+
+Check the result:
+
+.play cmd/get_pv.sh
+ 
+* pv-hd001
+
+.code kube/vols.yaml /10 O/,/20 O/
+
+storageClassName can be any name you specify.
+Must be lower-case, no spaces, no underscores.
+
+* pv-hd002
+
+.code kube/vols.yaml /30 O/,/40 O/
+
+Note: pv-hd002 is a member of storage class "hd-1gib"
+
+* Using Persistent Volumes -- staking a claim
+
+* Persistent Volume Claims
+
+Let's have two _busybox_ pods access the same PV in RW mode.
+
+The pods will be part of a kubernetes deployment.
+
+* busybox deployment - part 1
+
+.code kube/deploy.yaml /30 O/,/34 O/
+
+* busybox deployment - part 2
+
+.code kube/deploy.yaml /35 O/,/40 O/
+
+The pod when created will have a volume named "data",
+which will be mounted inside the pod at path /data 
+
+The storage resource volume "data" points to is pvc "bb-data01"
+
+* Persistent Volume Claim
+
+.code kube/deploy.yaml /10 O/,/20 O/
+
+pvc "bb-data01" asks the cluster if there are pv of class "hd-1gib" with capacity 1Gi.
+If cluster has the resource it *binds* a suitable pv to the pvc.
+
+* Let's run the deployment with the pvc
+
+.play -edit cmd/deploy.sh
+
+Inspect our pvc(s)
+
+.play -edit cmd/inspect_pvc.sh
+
+And our pod(s)
+
+.play -edit cmd/get_po.sh
+
+Scale our deployment
+
+.play -edit cmd/scale_deploy.sh
+
+* Command line explorations
+
+kubectl exec -ti {pod-name} sh
+
+cd /data
+
+touch {something}
+
+* What did we just see?
+
+- Multiple pods accessing the same storage resource.
+
+- Each pod defined a volume.
+
+- The volume pointed to a persistent volume claim (pvc).
+
+- pvc was bound to a persistent volume (pv) by the kubernetes cluster using storageClassName and the capacity hint.
+
+deployment and pvc .yaml can be safely stored in version control.
+Avoids need to hard-code aws volumeIDs ahead of time.
+
+System admin can be called to create Persistent Volumes with the matching storage class and capacity.
+
+* All was well until ...
+
+* NATS-Streaming
+
+- NATS-Streaming is a data streaming system much like Apache kafka.
+
+- A NATS-Streaming subscriber has a "client ID" and a "durable name" which must be _unique_
+
+- My deployments broke. On upgrades, kubernetes tries to bring up a replacement pod before terminating the running pod.
+
+- The replacement pod must have the same "client ID" and "durable name" for NATS-Streaming.
+
+- Replacement pod gets stuck in a crash loop. Forever...
+
+Work-around: I had to manually delete the deployment and then re-create the deployment.
+
+Not good...
+
+* Kubernetes Stateful Sets
+
+* Kubernetes Stateful Sets
+
+Provides guarantees about the ordering and uniqueness of pods it manages.
+
+I read the docs.
+
+Could not understand them till I performed a few experiments.
+
+* Let's experiment
+
+StatefulSet
+
+.play -edit cmd/sts-deploy.sh
+
+Check
+
+.play -edit cmd/sts-get_po.sh
+
+Scale
+
+.play -edit cmd/sts-scale.sh
+
+* Command line explorations
+
+kubectl exec -ti sfbox-1 sh
+
+ping sfbox-0
+
+nslookup sfbox-0.sfboxes
+
+ping sfbox-0.sfboxes
+
+hostname
+
+* sfboxes service
+
+Here is where the sfboxes from sfbox-0.sfboxes comes from:
+
+.code kube/sts-deploy.yaml /10 O/,/20 O/
+
+* Stateful Set
+
+.code kube/sts-deploy.yaml /30 O/,/50 O/
+
+* Volume management
+
+.code kube/sts-deploy.yaml /40 O/,/60 O/
+
+* TL;DR   (Too Long; Did not Read)
+
+- StatefulSets (sts) creates pods named sfbox-0, sfbox-1 ... sfbox-N.
+
+- Each pod above can _optionally_ be bound to a PV.
+
+- When a pod is restarted it will always get bound to the PV it was orignally assigned.
+
+- When upgrading, if there only one pod, eg. sfbox-0 . sfbox-0 will be terminated before it is replaced with a new sfbox-0.
+
+- The service managing the sts domain names _can_ be headless. Or it can be a regular service: clusterIP, nodePort, etc.
+With headless service, you access the individual pods directly eg. sfbox-0.sfboxes .
+With a regular service you access the service "sfboxes".
+

@@ -1,0 +1,53 @@
+---
+# 10 OMIT
+apiVersion: v1
+kind: Service
+metadata:
+  name: sfboxes       # <-- service name // HL
+  labels:
+    app: sfboxes
+spec:
+  clusterIP: None     # None makes this a headless service. sfbox-0.sfboxes .
+  #type: ClusterIP    # This is the default type
+  ports:
+  - port: 8080
+  selector:
+    app: sfboxes
+# 20 OMIT
+---
+# 30 OMIT
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sfbox # <-- sts name // HL
+spec:
+  selector:
+    matchLabels:
+      app: sfboxes # has to match .spec.template.metadata.labels
+  serviceName: sfboxes
+  replicas: 1 # by default is 1
+  template:
+    metadata:
+      labels:
+        app: sfboxes # has to match .spec.selector.matchLabels
+# 40 OMIT
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+      - name: sfbox
+        image: busybox:1.27
+        command: ["sleep","1000000000"]
+# 50 OMIT
+#        volumeMounts:     # you don't have to have volumes, eg. it could talk to a networked DB
+#        - name: data      # but if you do have persistent volumes, you need to pre-provision with
+#          mountPath: /data # the storage class name below.
+#  volumeClaimTemplates:
+#  - metadata:
+#      name: data
+#    spec:
+#      accessModes: [ "ReadWriteOnce" ]
+#      storageClassName: "sfboxes-storage-class"
+#      resources:
+#        requests:
+#          storage: 1Gi
+# 60 OMIT
