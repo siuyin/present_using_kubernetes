@@ -190,6 +190,8 @@ kubectl exec -ti sfbox-1 sh
 ping sfbox-0
 
 nslookup sfbox-0.sfboxes
+nslookup sfbox-0.sfboxes.default.svc.cluster.local
+(kube-dns bug when external DNS not presetnt)
 
 ping sfbox-0.sfboxes
 
